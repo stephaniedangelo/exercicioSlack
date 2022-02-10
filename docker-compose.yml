@@ -1,0 +1,4 @@
+version: "3.7"
+services:
+  impacta_app:
+    image: "impacta_app:1.0"

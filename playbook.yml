@@ -1,0 +1,77 @@
+- hosts: local
+  gather_facts: False
+  debugger: on_skipped
+
+  tasks:
+  - name: Instalando docker
+    apt:
+      name: docker.io
+      update_cache: yes
+      state: present
+
+  - name: Instalando docker-compose
+    apt:
+      name: docker-compose
+      update_cache: yes
+      state: present
+
+  - name: Habilitar docker no boot
+    service:
+        name: docker
+        enabled: yes
+        state: started
+
+  - name: Instalando mongodb
+    apt:
+      name: mongodb
+      state: present
+      update_cache: yes
+    notify:
+      - start mongodb
+
+  - name: Copiando artefatos para o servidor
+    copy:
+       src: "{{ item }}"
+       dest: "/root/{{ item }}"
+       owner: root
+       group: root
+    with_items:
+      - docker-compose.yml
+      - Dockerfile
+      - main.py
+      - requeriments.txt
+      - slacko-api.sh
+
+  - name: Criar diretorio
+    file:
+      path: /opt/slacko-api/
+      state: directory
+
+  - name: checar imagem
+    docker_image_info:
+        name: impacta_app:1.0
+        
+  - name: Construindo a imagem
+    command: docker build -t impacta_app:1.0 .
+    args:
+       chdir: /root/
+    register: docker_build
+    tags:
+      - docker-build
+
+  - name: Executando o docker-compose
+    command: docker-compose up -d
+    args:
+       chdir: /root/
+    register: docker_compose_up
+    tags:
+      - docker-start
+
+  - name: Executar script
+    command: sh /vagrant/slacko-api.sh
+
+  handlers:
+    - name: start mongodb
+      service:
+        name: mongodb
+        state: started
